@@ -1,0 +1,38 @@
+#!/command/with-contenv bash
+# Set gateway.controlUi.allowedOrigins after Tailscale is connected
+source /etc/s6-overlay/lib/env-utils.sh
+
+source_env_prefix OPENCLAW_
+
+CONFIG_FILE="${OPENCLAW_STATE_DIR:-/data/.openclaw}/openclaw.json"
+
+if [ "${TAILSCALE_ENABLE:-false}" != "true" ]; then
+  echo "[allowed-origins] Tailscale not enabled, skipping"
+  exit 0
+fi
+
+echo "[allowed-origins] Waiting for Tailscale to connect..."
+TS_IP=""
+for i in $(seq 1 30); do
+  TS_IP=$(tailscale --socket "${TS_SOCKET:-/tmp/tailscaled.sock}" ip -4 2>/dev/null || echo "")
+  if [ -n "$TS_IP" ]; then
+    echo "[allowed-origins] Tailscale IP: $TS_IP"
+    break
+  fi
+  sleep 2
+done
+
+if [ -z "$TS_IP" ]; then
+  echo "[allowed-origins] WARNING: Could not get Tailscale IP after 60s, skipping allowedOrigins"
+  exit 0
+fi
+
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo "[allowed-origins] Config file not found, skipping"
+  exit 0
+fi
+
+echo "[allowed-origins] Setting controlUi.allowedOrigins to http://${TS_IP}:18789"
+jq --arg ip "$TS_IP" '.gateway.controlUi.allowedOrigins = ["http://\($ip):18789"]' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+chown openclaw:openclaw "$CONFIG_FILE"
+echo "[allowed-origins] Done"
