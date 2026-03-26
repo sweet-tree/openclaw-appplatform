@@ -110,6 +110,13 @@ fi
 if [ "${TAILSCALE_ENABLE:-false}" = "true" ]; then
   echo "[generate-config] Adding Tailscale serve config"
   jq '.gateway.tailscale.resetOnExit = true | .gateway.tailscale.mode = "serve" | .gateway.auth.allowTailscale = true' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+
+  # Set allowedOrigins dynamically using Tailscale IP
+  TS_IP=$(tailscale --socket "${TS_SOCKET:-/tmp/tailscaled.sock}" ip -4 2>/dev/null || echo "")
+  if [ -n "$TS_IP" ]; then
+    echo "[generate-config] Setting controlUi.allowedOrigins for Tailscale IP: $TS_IP"
+    jq --arg ip "$TS_IP" '.gateway.controlUi.allowedOrigins = ["http://\($ip):18789"]' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+  fi
 fi
 
 # Ensure tools.profile defaults to "coding" (2026.3.x changed default to "messaging")
