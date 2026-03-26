@@ -17,6 +17,7 @@ persist_env_var TS_ \
   TS_SOCKET=/tmp/tailscaled.sock \
   TS_USERSPACE=true \
   TS_STATE_DIR=/data/tailscale \
+  TS_SERVE_CONFIG=/etc/openclaw/ts-serve.json \
   TS_EXTRA_ARGS="--operator=openclaw --accept-dns=false" \
   TAILSCALE_ENABLE="${TAILSCALE_ENABLE:-false}"
 
